@@ -1,5 +1,5 @@
-sam_ckpt_path: '/home/kappa7077/MaskSam/sam_vit_b.pth'
-tp_ckpt_path: '/home/kappa7077/MaskSam/tp.pth'
+sam_ckpt_path: '/home/kappa7077/MaskSam/Backbone/sam_vit_b.pth'
+tp_ckpt_path: '/home/kappa7077/MaskSam/Backbone/tp.pth'
 settings:
   USE_TEXT_PROMPT: True
   USE_MASK_PROMPT: True

@@ -1,8 +1,7 @@
 import os
 import numpy as np
-from data_utils import *
 from Model.model import *
-from utils import *
+from Utils.Score  import *
 import torch
 import yaml
 import argparse
@@ -10,8 +9,8 @@ from Model.CacheModel_v2 import CacheModel
 from datasets import build_dataset
 from datasets.utils import build_data_loader
 from tqdm import tqdm
-import wandb
-from plots import plot_test_result
+from Utils.plots import plot_test_result
+
 import json
 i2l=['spleen','right kidney','left kidney','gallbladder','liver','stomach','aorta','pancreas']
 label_score = {}
