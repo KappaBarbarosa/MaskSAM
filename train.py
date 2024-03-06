@@ -7,6 +7,8 @@ from datetime import datetime
 import wandb
 import json
 import os
+import random
+
 def parse_args():
     parser = argparse.ArgumentParser()
 
@@ -51,8 +53,6 @@ def main_train(data_config, model_config,valid_config, pretrained_path, save_pat
         criterion.append(binary_focal_loss)
     if 'monai focal' in training_params['criterions']:
         criterion.append(monai_focal_loss)
-    if 'weighted CE' in training_params['criterions']:
-        criterion.append(weighted_ce_loss)
     if 'BCE' in training_params['criterions']:
         criterion.append(BCE_loss)
     if 'weighted dice' in training_params['criterions']:
@@ -91,7 +91,8 @@ if __name__ == '__main__':
     with open(args.valid_config, 'r') as f:
         valid_config = json.load(f)
     current_time = datetime.now().strftime("%m-%d_%H:%M")
-    
+    random.seed(1)
+    torch.manual_seed(1)
     wandb.init(
         # set the wandb project where this run will be logged
         entity="citi2023",

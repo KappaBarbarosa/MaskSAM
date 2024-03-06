@@ -105,7 +105,6 @@ class CacheModel(nn.Module):
             train_features= []
             with torch.no_grad():
                 for images, _, _, _ ,_ in self.cache_loader:
-#                     print(images.shape)
                     img_embds = model.sam.image_encoder(images.to(self.device))
                     image_features = self.transpose(img_embds)     # image embeddings after transpose
                     train_features.append(image_features.view(image_features.size(0), -1))

@@ -24,11 +24,7 @@ def linear_warmup_cosine_lr_scheduler(optimizer, warmup_epochs, max_epochs):
     scheduler = LambdaLR(optimizer, lr_lambda)
     return scheduler
 
-def train_per_epoch(
-        model, CM, optimizer, train_dataloader,criterions, criterion_weights, 
-        setting,params,d_cfg,img_save_path,
-        epoch, device
-    ):
+def train_per_epoch( model, CM, optimizer, train_dataloader,criterions, criterion_weights, setting,params,d_cfg,img_save_path,epoch, device):
     model.train()
     
     alpha,beta,label_text,num_classes = d_cfg['alpha'],d_cfg['beta'],d_cfg['label_names'],d_cfg['classes']
@@ -109,12 +105,7 @@ def train_per_epoch(
         wandb.log({label_text[i]: loss, 'epoch':epoch})
 
 @torch.no_grad()
-def valid_per_epoch_for_synapase(
-        model, valid_dataloader, 
-        criterions, criterion_weights, 
-        CM, d_cfg, USE_TEXT,label_text,train_cache,
-        val_config,img_save_path, epoch, device
-    ):
+def valid_per_epoch_for_synapase(model, valid_dataloader, CM, d_cfg, USE_TEXT,label_text,train_cache,val_config,img_save_path, epoch, device):
     alpha,beta,classes,input_size = d_cfg['alpha'],d_cfg['beta'],d_cfg['classes'],d_cfg['img_size']
     model.eval()
 
@@ -306,7 +297,6 @@ def organ_train(data_config, model, criterions, save_path, model_config,img_save
         if data_config['name'] =='Synapse':
             valid_metric = valid_per_epoch_for_synapase(
                 model=model, valid_dataloader=val_dataloader, 
-                criterions=criterions, criterion_weights=criterion_weights, 
                 CM=CM, d_cfg=data_config,val_config=val_config,
                 USE_TEXT = USE_TEXT_PROMPT,
                 label_text = data_config['label_names'],
