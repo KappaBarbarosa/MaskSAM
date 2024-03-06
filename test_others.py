@@ -1,9 +1,8 @@
 import os
 import numpy as np
-from data_utils import *
 from Model.model import *
-from utils import *
-from plots import *
+from Utils.Score import *
+from Utils.plots import *
 import torch
 import yaml
 import argparse
@@ -11,7 +10,6 @@ from Model.CacheModel import CacheModel
 from datasets import build_dataset
 from datasets.utils_v2 import build_data_loader
 from tqdm import tqdm
-import time
 
 def parse_args():
     parser = argparse.ArgumentParser()
