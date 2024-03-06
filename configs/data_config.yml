@@ -1,0 +1,37 @@
+data:
+  name: Synapse
+  classes: 8
+  img_size: 512
+  # ------ root_path/dataset_name ------
+  label_path: '/home/kappa7077/organ_label_withtext'
+  image_path: '/home/kappa7077/'
+
+  # ------ Hyperparamters ------
+  beta: 10
+  alpha: 0.5
+  # ------ Basic Config ------
+  shots: 16
+  cache_path: 'cache.json'
+  data_path: 'data.json'
+  Notalldata_path: 'data_v2.json'
+  data_type: 'nall'
+  label_names: ['spleen','right kidney','left kidney','gallbladder','liver','stomach','aorta','pancreas']
+  label_weight: [1.15,1.11,1.12,5,1,3,1.1,5]
+# data:
+#   name: Endovis17
+#   img_size: 512
+#   # ------ root_path/dataset_name ------
+#   label_path: '/work/chen0063/endovis17'
+#   image_path: '/work/chen0063/endovis17'
+
+#   # ------ Hyperparamters ------
+#   search_hp: True
+#   search_scale: [30, 100]
+#   search_step: [200, 20]
+
+#   beta: 75
+#   alpha: 1
+#   # ------ Basic Config ------
+#   shots: 16
+#   cache_path: 'cache_data.json'
+#   data_path: 'data.json'

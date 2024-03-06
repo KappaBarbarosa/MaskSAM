@@ -1,0 +1,17 @@
+sam_ckpt_path: '/home/kappa7077/MaskSam/sam_vit_b.pth'
+tp_ckpt_path: '/home/kappa7077/MaskSam/tp.pth'
+settings:
+  USE_TEXT_PROMPT: True
+  USE_MASK_PROMPT: True
+  USE_LORA: False
+
+training:
+  optimizer: 'adamw'
+  lr: 1e-4
+  batch_size: 75
+  num_epochs: 100
+  weight_decay: 1e-3
+  criterions: ['focal']
+  criterion_weights: [1]
+  train_convolution: False
+  train_cache: False

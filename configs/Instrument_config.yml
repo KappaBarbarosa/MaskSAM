@@ -1,0 +1,19 @@
+data:
+  name: kvasir-instrument
+  img_size: 256
+  classes: 1
+  # ------ root_path/dataset_name ------
+  label_path: '/home/kappa7077/kvasir-instrument'
+  image_path: '/home/kappa7077/kvasir-instrument'
+
+  # ------ Hyperparamters ------
+  shots: 16
+  beta: 10
+  alpha: 1
+  # ------ Basic Config ------
+  cache_path: 'cache.json'
+  Alldata_path: 'data.json'
+  data_type: 'all'
+  cache_list: 'cache_list.npz'
+  label_names: ['instrument']
+  label_weight: [1]

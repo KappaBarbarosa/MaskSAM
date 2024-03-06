@@ -1,0 +1,7 @@
+wandb/*
+test_results/*
+test_results_1/*
+checkpoints/*
+*.pth
+clip/bpe_simple_vocab_16e6.txt.gz
+*.pyc

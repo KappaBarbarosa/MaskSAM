@@ -1,0 +1,20 @@
+data:
+  name: CheXdet
+  classes: 13
+  img_size: 256
+  # ------ root_path/dataset_name ------
+  label_path: '/home/kappa7077/ChexDet_Data'
+  image_path: '/home/kappa7077/ChexDet_Data'
+
+  # ------ Hyperparamters ------
+  shots: 16
+  beta: 10
+  alpha: 1
+  # ------ Basic Config ------
+  cache_path: 'cache.json'
+  Notalldata_path: 'data_NotAllBlank_wrong.json'
+  Alldata_path: 'data_AllBlank_wrong.json'
+  data_type: 'all'
+  cache_list: 'cache_list.npz'
+  label_names: ['Atelectasis', 'Calcification', 'Cardiomegaly', 'Consolidation', 'Diffuse Nodule', 'Effusion', 'Emphysema', 'Fibrosis', 'Fracture', 'Mass', 'Nodule', 'Pleural Thickening', 'Pneumothorax' ]
+  label_weight: [1,1,1,1,1,1,1,1,1,1,1,1,1]
