@@ -45,22 +45,21 @@ def main_train(data_config, model_config,valid_config, pretrained_path, save_pat
     
     criterion = []
 
-    if 'Dice' in training_params['criterions']:
-        criterion.append(dice_loss)
-    if 'BDice' in training_params['criterions']:
-        criterion.append(binary_dice_loss)
-    if 'focal' in training_params['criterions']:
-        criterion.append(binary_focal_loss)
-    if 'monai focal' in training_params['criterions']:
-        criterion.append(monai_focal_loss)
-    if 'BCE' in training_params['criterions']:
-        criterion.append(BCE_loss)
-    if 'weighted dice' in training_params['criterions']:
-        criterion.append(weighted_dice_loss)
-    if 'weighted BCE' in training_params['criterions']:
-        criterion.append(weighted_BCE_loss)
-    if 'weighted focal' in training_params['criterions']:
-        criterion.append(weighted_focal_loss)
+    criterion_mapping = {
+    'Dice': dice_loss,
+    'BDice': binary_dice_loss,
+    'focal': binary_focal_loss,
+    'monai focal': monai_focal_loss,
+    'monai dice': monai_diceloss,
+    'BCE': BCE_loss,
+    'weighted dice': weighted_dice_loss,
+    'weighted BCE': weighted_BCE_loss,
+    'weighted focal': weighted_focal_loss
+    }
+
+    for key, value in criterion_mapping.items():
+        if key in training_params['criterions']:
+            criterion.append(value)
     
 
     if data_config['data']['name'] == 'Synapse':

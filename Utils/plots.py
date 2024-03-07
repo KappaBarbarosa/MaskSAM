@@ -86,7 +86,7 @@ def plot_slice_result(step, img, mask_prompts,label, GT, threshold_mask, path='.
 def plot_test_result(step, image, mask_prompts, predict_mask, sigmoid_predict_mask, GT, threshold_mask,labels,id2label,scores):
     filename = "{:04d}".format(step)
     for i,label in enumerate(labels):
-        if (torch.sum(threshold_mask[i])==0) or (torch.sum(GT[i])==0) or (scores[i]<0.5):
+        if (i>1) and ((torch.sum(threshold_mask[i])==0) or (torch.sum(GT[i])==0) or (scores[i]<0.5)):
             print(scores[i])
             continue
         fig = plt.figure(figsize=(10, 12))

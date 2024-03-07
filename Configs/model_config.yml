@@ -3,7 +3,7 @@ tp_ckpt_path: '/home/kappa7077/MaskSam/Backbone/tp.pth'
 settings:
   USE_TEXT_PROMPT: True
   USE_MASK_PROMPT: True
-  USE_LORA: False
+  USE_LORA: True
 
 training:
   optimizer: 'adamw'
@@ -11,7 +11,7 @@ training:
   batch_size: 75
   num_epochs: 100
   weight_decay: 1e-3
-  criterions: ['focal']
-  criterion_weights: [1]
+  criterions: ['dice','focal']
+  criterion_weights: [0.001,0.9]
   train_convolution: False
-  train_cache: False
+  train_cache: True

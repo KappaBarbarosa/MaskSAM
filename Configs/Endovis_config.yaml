@@ -1,0 +1,18 @@
+data:
+  name: Endovis17
+  img_size: 512
+  # ------ root_path/dataset_name ------
+  label_path: '/work/chen0063/endovis17'
+  image_path: '/work/chen0063/endovis17'
+
+  # ------ Hyperparamters ------
+  search_hp: True
+  search_scale: [30, 100]
+  search_step: [200, 20]
+
+  beta: 75
+  alpha: 1
+  # ------ Basic Config ------
+  shots: 16
+  cache_path: 'cache_data.json'
+  data_path: 'data.json'

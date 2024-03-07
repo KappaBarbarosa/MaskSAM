@@ -47,8 +47,8 @@ def dice_loss(predict, target, labels, label_weight):
     pre = torch.sigmoid(predict).view(num, -1)
     tar = target.view(num, -1)
     
-    intersection = (pre * tar).sum(-1)  
-    union = (pre + tar).sum(-1)
+    intersection = (pre * tar).sum(-1).sum()
+    union = (pre + tar).sum(-1).sum()
     
     score = 1 -  (2.0 * intersection + epsilon) / (union + epsilon)
     
@@ -83,10 +83,13 @@ def weighted_BCE_loss(y_pred, y_true, label, label_penalty_weight):
 
 def BCE_loss(y_pred, y_true, label=None, label_penalty_weight=None):
     return 'BCE loss', torch.nn.BCEWithLogitsLoss()(y_pred, y_true)
-def monai_diceloss(y_pred, y_true,sigmoid=True):
-    return 'monai Dice loss',monai.losses.DiceLoss(sigmoid=sigmoid, squared_pred=True, reduction="none")(y_pred, y_true)
-def monai_focal_loss(y_pred, y_true):
-    return 'monai focal_loss',monai.losses.FocalLoss(reduction="none", gamma=3.5)(y_pred, y_true)
+def monai_diceloss(y_pred, y_true,label,label_weight):
+    return 'monai Dice loss',monai.losses.DiceLoss(sigmoid=True, squared_pred=True, reduction="none")(y_pred, y_true)
+def monai_focal_loss(y_pred, y_true,label,label_weight):
+    return 'monai Focal loss',monai.losses.FocalLoss(reduction="none", gamma=3.5)(y_pred, y_true)
+
+
+
 def weighted_ce_loss(y_pred, y_true, alpha=64, smooth=1):
     weight1 = torch.sum(y_true==1,dim=(-1,-2))+smooth
     weight0 = torch.sum(y_true==0, dim=(-1,-2))+smooth

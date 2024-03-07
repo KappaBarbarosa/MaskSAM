@@ -6,7 +6,7 @@ from Utils.plots import *
 import torch
 import yaml
 import argparse
-from Model.CacheModel import CacheModel
+from Model.CacheModel_v2 import CacheModel
 from datasets import build_dataset
 from datasets.utils_v2 import build_data_loader
 from tqdm import tqdm
@@ -29,7 +29,7 @@ def parse_args():
     return args
 
 @torch.no_grad()
-def test_per_epoch(model, test_dataloader, CM, alpha, beta, USE_TEXT,label_text, device):
+def test_per_epoch(model, test_dataloader, CM, alpha, beta, USE_TEXT,train_cache,label_text, device):
     model.eval()
     label_score = {}
     bar = tqdm(enumerate(test_dataloader), total = len(test_dataloader))
@@ -37,7 +37,11 @@ def test_per_epoch(model, test_dataloader, CM, alpha, beta, USE_TEXT,label_text,
         image, label, GT, case,_ = batch
         img_embeds = model.sam.image_encoder(image.to(device))
         if CM is not None:
-            mask_prompts =  CM(img_embeds=img_embeds,case=case, label=label, beta=beta)
+            if train_cache:
+                model.CM.eval()
+                mask_prompts =  model.CM(img_embeds=img_embeds,case=case, label=label, beta=beta)
+            else:   
+                mask_prompts =  CM(img_embeds=img_embeds,case=case, label=label, beta=beta)
         text  = [label_text[i] for i in label.numpy()]
         if (CM is not None) and USE_TEXT: # using both text and mask
             predict_mask = model(image_embeddings=img_embeds, mask_prompts=mask_prompts.unsqueeze(1), alpha=alpha, x_text=text).squeeze(1)
@@ -75,11 +79,15 @@ def test(data_config, model_config, pretrained_path, batch_size, device='cuda:0'
         USE_LORA = model_config['settings']['USE_LORA']
         USE_TEXT_PROMPT = model_config['settings']['USE_TEXT_PROMPT']
         USE_MASK_PROMPT = model_config['settings']['USE_MASK_PROMPT']
-            
+        train_cache = model_config['training']['train_cache']
         model = Mask_SAM(model_config, device)
         if USE_LORA:
             model.add_lora()
-
+        CM = None
+        if USE_MASK_PROMPT:
+            CM = CacheModel(model=model,train_loader_cache=None,train_cache=train_cache, image_path=data_config['image_path'], save_or_load_path=pretrained_path, device=device,tp_path=model_config['tp_ckpt_path'])
+            if train_cache:
+                model.CM = CM
         if pretrained_path is not None:
             state_dict = torch.load(os.path.join(pretrained_path, 'model_ckpt.pth'),map_location='cpu')
             model.load_state_dict(state_dict, strict=True)
@@ -90,14 +98,12 @@ def test(data_config, model_config, pretrained_path, batch_size, device='cuda:0'
 
         # prepare data
         dataset = build_dataset(data_config, image_in_cache=None,is_cache=False, model=None)
-        test_dataloader = build_data_loader(data_source=dataset.train, batch_size=batch_size, shuffle=False, desired_size=data_config['img_size'])
+        test_dataloader = build_data_loader(data_source=dataset.test, batch_size=batch_size, shuffle=False, desired_size=data_config['img_size'])
         
-        CM = None
-        if USE_MASK_PROMPT:
-            CM = CacheModel(model=model,train_loader_cache=None, image_path=data_config['image_path'], save_or_load_path=pretrained_path, device=device)                             
+                                     
     
         # testing
-        label_score= test_per_epoch(model, test_dataloader, CM, data_config['alpha'], data_config['beta'], USE_TEXT_PROMPT,label_text, device)
+        label_score= test_per_epoch(model, test_dataloader, CM, data_config['alpha'], data_config['beta'], USE_TEXT_PROMPT,train_cache,label_text, device)
         D=I=0
         for key, value in label_score.items():
             print(len(value['DSC']))

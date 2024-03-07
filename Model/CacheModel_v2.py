@@ -10,9 +10,7 @@ import random
 from scipy.ndimage import zoom
 import os
 import cv2
-import numpy
-random.seed(1)
-torch.manual_seed(1)
+
 from PIL import Image
 
 import gc
@@ -139,6 +137,7 @@ class CacheModel(nn.Module):
         image_features = image_features / image_features.norm(dim=-1, keepdim=True)
         affinity =self.cache_keys(image_features) if self.train_cache else torch.mm(image_features, self.cache_keys)
         logits = ((-1) * (beta - beta * affinity)).exp()
+        # print(logits)
         return logits
     
     def forward(self,img_embeds,label,case,beta=10,is_train= False):

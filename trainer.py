@@ -105,8 +105,8 @@ def train_per_epoch( model, CM, optimizer, train_dataloader,criterions, criterio
         wandb.log({label_text[i]: loss, 'epoch':epoch})
 
 @torch.no_grad()
-def valid_per_epoch_for_synapase(model, valid_dataloader, CM, d_cfg, USE_TEXT,label_text,train_cache,val_config,img_save_path, epoch, device):
-    alpha,beta,classes,input_size = d_cfg['alpha'],d_cfg['beta'],d_cfg['classes'],d_cfg['img_size']
+def valid_per_epoch_for_synapase(model, valid_dataloader, CM, d_cfg, USE_TEXT,train_cache,val_config,img_save_path, epoch, device):
+    alpha,beta,classes,input_size,label_text = d_cfg['alpha'],d_cfg['beta'],d_cfg['classes'],d_cfg['img_size'],d_cfg['label_names']
     model.eval()
 
     Prediction_3d={}
@@ -167,8 +167,8 @@ def valid_per_epoch_for_synapase(model, valid_dataloader, CM, d_cfg, USE_TEXT,la
 
     return metric_list
 @torch.no_grad()
-def valid_per_epoch_for_others(model, valid_dataloader, CM, d_cfg, USE_TEXT,label_text,train_cache,img_save_path, epoch, device):
-    alpha,beta = d_cfg['alpha'],d_cfg['beta']
+def valid_per_epoch_for_others(model, valid_dataloader, CM, d_cfg, USE_TEXT,train_cache,img_save_path, epoch, device):
+    alpha,beta,label_text = d_cfg['alpha'],d_cfg['beta'],d_cfg['label_names']
     model.eval()
     running_dice = 0
     count = 0
@@ -201,12 +201,12 @@ def valid_per_epoch_for_others(model, valid_dataloader, CM, d_cfg, USE_TEXT,labe
         count += ri.shape[0]
         bar.set_postfix(Epoch=epoch, Valid_dsc=score)
 
-        if CM is None:
-            mp = np.zeros(GT.shape)
-        else :
-            mp = mask_prompts.cpu().detach().numpy()
-        sigmoid_mask = torch.sigmoid(predict_mask).detach().cpu().numpy()
-        threshold_mask = sigmoid_mask > 0.5
+        # if CM is None:
+        #     mp = np.zeros(GT.shape)
+        # else :
+        #     mp = mask_prompts.cpu().detach().numpy()
+        # sigmoid_mask = torch.sigmoid(predict_mask).detach().cpu().numpy()
+        # threshold_mask = sigmoid_mask > 0.5
         # plot_result(step, image, mp,label.cpu().detach().numpy(), predict_mask, sigmoid_mask, 
         #             GT, threshold_mask,istrain=False,path = os.path.join(img_save_path,'valid/'),)
     epoch_dice = running_dice / count
@@ -236,7 +236,7 @@ def organ_train(data_config, model, criterions, save_path, model_config,img_save
     if USE_MASK_PROMPT:
         cache_dataset = build_dataset(data_config, image_in_cache=None, is_cache= True, model=model)
         train_loader_cache = build_cache_loader(data_source=cache_dataset.train, batch_size=bs, shuffle=True, desired_size=data_config['img_size'])
-        CM = CacheModel(model, train_loader_cache, data_config['image_path'], is_train_cache, USE_LORA, save_path, device)  
+        CM = CacheModel(model, train_loader_cache, data_config['image_path'], is_train_cache, USE_LORA, save_path, device,tp_path=model_config['tp_ckpt_path'])  
         if is_train_cache:
             model.CM = CM.to(device)
     
@@ -299,7 +299,6 @@ def organ_train(data_config, model, criterions, save_path, model_config,img_save
                 model=model, valid_dataloader=val_dataloader, 
                 CM=CM, d_cfg=data_config,val_config=val_config,
                 USE_TEXT = USE_TEXT_PROMPT,
-                label_text = data_config['label_names'],
                 train_cache = is_train_cache,
                 img_save_path = img_save_path,
                 epoch=epoch, device=device
