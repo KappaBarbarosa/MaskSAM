@@ -125,8 +125,9 @@ def test(data_config, model_config, pretrained_path, batch_size,test_config, dev
         
         CM = None
         if USE_MASK_PROMPT:
-            CM = CacheModel(model=model,train_loader_cache=None, image_path=data_config['image_path'], save_or_load_path=pretrained_path, device=device)      
-        
+            CM = CacheModel(model=model,train_loader_cache=None, image_path=data_config['image_path'],train_cache=train_cache, save_or_load_path=pretrained_path, device=device,,tp_path=model_config['tp_ckpt_path'])      
+        if train_cache:
+            model.CM = CM
         if pretrained_path is not None:
             state_dict = torch.load(os.path.join(pretrained_path, 'model_ckpt.pth'),map_location='cpu')
             model.load_state_dict(state_dict, strict=True)

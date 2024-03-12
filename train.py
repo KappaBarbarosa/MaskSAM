@@ -1,6 +1,6 @@
 import argparse
 import yaml
-from Utils.Score import *
+from Utils.Loss import *
 from Model.model import Mask_SAM
 from trainer import organ_train
 from datetime import datetime
@@ -54,7 +54,8 @@ def main_train(data_config, model_config,valid_config, pretrained_path, save_pat
     'BCE': BCE_loss,
     'weighted dice': weighted_dice_loss,
     'weighted BCE': weighted_BCE_loss,
-    'weighted focal': weighted_focal_loss
+    'weighted focal': weighted_focal_loss,
+    'ADice':adjust_diceloss
     }
 
     for key, value in criterion_mapping.items():

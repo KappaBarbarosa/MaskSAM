@@ -1,9 +1,9 @@
-sam_ckpt_path: '/home/kappa7077/MaskSam/Backbone/sam_vit_b.pth'
-tp_ckpt_path: '/home/kappa7077/MaskSam/Backbone/tp.pth'
+sam_ckpt_path: '/home/chen0063/SINICA/sam_vit_b.pth'
+tp_ckpt_path: '/home/chen0063/SINICA/tp.pth'
 settings:
   USE_TEXT_PROMPT: True
-  USE_MASK_PROMPT: True
-  USE_LORA: True
+  USE_MASK_PROMPT: False
+  USE_LORA: False
 
 training:
   optimizer: 'adamw'
@@ -11,7 +11,7 @@ training:
   batch_size: 75
   num_epochs: 100
   weight_decay: 1e-3
-  criterions: ['dice','focal']
-  criterion_weights: [0.001,0.9]
+  criterions: ['ADice']
+  criterion_weights: [1]
   train_convolution: False
-  train_cache: True
+  train_cache: False

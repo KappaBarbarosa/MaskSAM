@@ -24,6 +24,117 @@ def linear_warmup_cosine_lr_scheduler(optimizer, warmup_epochs, max_epochs):
     scheduler = LambdaLR(optimizer, lr_lambda)
     return scheduler
 
+def organ_train(data_config, model, criterions, save_path, model_config,img_save_path,val_config=None, device='cuda:0'):
+    training_params = model_config['training']
+    prompt = model_config['settings']
+
+    criterion_weights=training_params['criterion_weights'] 
+    num_epochs = training_params['num_epochs']
+    bs=training_params['batch_size']
+    is_train_cache = training_params['train_cache']
+
+    USE_LORA = prompt['USE_LORA']
+    USE_TEXT_PROMPT = prompt['USE_TEXT_PROMPT']
+    USE_MASK_PROMPT = prompt['USE_MASK_PROMPT']
+    
+    model = model.to(device)
+
+    CM = None
+    if USE_MASK_PROMPT:
+        cache_dataset = build_dataset(data_config, image_in_cache=None, is_cache= True, model=model)
+        train_loader_cache = build_cache_loader(data_source=cache_dataset.train, batch_size=bs, shuffle=True, desired_size=data_config['img_size'])
+        CM = CacheModel(model, train_loader_cache, os.path.join(data_config['root_path'],data_config['label_path']), is_train_cache, USE_LORA, save_path, device,tp_path=model_config['tp_ckpt_path'])  
+        if is_train_cache:
+            model.CM = CM.to(device)
+    
+    if training_params['optimizer'] == 'adamw':
+        optimizer = optim.AdamW(model.parameters(), lr=float(training_params['lr']), weight_decay=float(training_params['weight_decay']))
+    elif training_params['optimizer'] == 'sgd':
+        optimizer = optim.SGD(model.parameters(), lr=float(training_params['lr']), weight_decay=float(training_params['weight_decay']), momentum=0.9)
+    scheduler = linear_warmup_cosine_lr_scheduler(optimizer, int(training_params['num_epochs']*0.1), training_params['num_epochs'])
+
+    
+    if USE_LORA:
+        model.add_lora()
+        model = model.to(device)
+    else:
+        for p in model.parameters():
+            p.requires_grad=False
+    
+    #train common layers for all strategies
+    for name, p in model.named_parameters():
+        if 'prompt' in name:
+            p.requires_grad = True
+        if 'decoder' in name:
+            p.requires_grad = True
+        if 'Text_Embedding_Affine' in name:
+            p.requires_grad = True
+        if 'transpose' in name:
+            p.requires_grad = True
+        if 'clip' in name.lower():
+            p.requires_grad = False
+        if  'CM' in name in name:
+            p.requires_grad = True
+
+    if USE_MASK_PROMPT:
+        dataset = build_dataset(data_config, image_in_cache=CM.get_image_in_cache(), is_cache=False, model=None)
+    else:
+        dataset = build_dataset(data_config, image_in_cache=None, is_cache=False, model=None)
+    
+    tr_dataloader = build_data_loader(data_source=dataset.train, batch_size=bs, shuffle=False, desired_size=data_config['img_size'], isAug=False)
+    
+    if len(dataset.val)==0:
+        sample_size = int(len(dataset.test) * 1)
+        dataset.val = random.sample(dataset.test, sample_size)
+    val_dataloader = build_data_loader(data_source=dataset.val, batch_size=bs, shuffle=False, desired_size=data_config['img_size'])         
+
+    best_DSC = -np.inf
+
+    for epoch in range(num_epochs):
+        train_loss = train_per_epoch(
+            model=model, optimizer=optimizer, train_dataloader=tr_dataloader, 
+            criterions=criterions, criterion_weights=criterion_weights, 
+            CM=CM,
+            setting = prompt,
+            params = training_params,
+            d_cfg = data_config,
+            img_save_path = img_save_path,
+            epoch=epoch, device=device
+        )
+        if data_config['name'] =='Synapse':
+            valid_metric = valid_per_epoch_for_synapase(
+                model=model, valid_dataloader=val_dataloader, 
+                CM=CM, d_cfg=data_config,val_config=val_config,
+                USE_TEXT = USE_TEXT_PROMPT,
+                train_cache = is_train_cache,
+                img_save_path = img_save_path,
+                epoch=epoch, device=device
+            )
+            valid_metric /= len(val_config)
+            performance = np.mean(valid_metric, axis=0)[0]
+            mean_hd95 = np.mean(valid_metric, axis=0)[1]
+            wandb.log({'3D Valid DSC':performance, '3D Valid HD':mean_hd95, 'epoch':epoch})
+        else:
+            performance = valid_per_epoch_for_others(model=model, valid_dataloader=val_dataloader, 
+                CM=CM, d_cfg=data_config,
+                USE_TEXT = USE_TEXT_PROMPT,label_text = data_config['label_names'],train_cache = is_train_cache,
+                img_save_path = img_save_path,
+                epoch=epoch, device=device)
+            wandb.log({'dsc score':performance, 'epoch':epoch})
+           
+        if performance > best_DSC:
+            best_DSC = performance
+            # torch.save(model.transpose.state_dict(), './checkpoints/conv_' + save_path)
+            torch.save(model.state_dict(), os.path.join(save_path, 'model_ckpt.pth'))
+            if USE_LORA:
+                model.save_lora_parameters(os.path.join(save_path, 'lora_p.pth'))
+            if USE_MASK_PROMPT:
+                CM.save_cache_keys(CM.cache_keys)
+        scheduler.step()
+    print(f'BEST DSC: {best_DSC}')
+    return model
+
+
 def train_per_epoch( model, CM, optimizer, train_dataloader,criterions, criterion_weights, setting,params,d_cfg,img_save_path,epoch, device):
     model.train()
     
@@ -75,6 +186,7 @@ def train_per_epoch( model, CM, optimizer, train_dataloader,criterions, criterio
             loss *= weight
             if loss.numel() == 1:
                 seg_loss+=loss
+                wandb.log({criterion_name: loss, 'epoch':epoch})
             else:
                 seg_loss += loss.mean()
                 wandb.log({criterion_name: loss.mean(), 'epoch':epoch})
@@ -217,112 +329,3 @@ def valid_per_epoch_for_others(model, valid_dataloader, CM, d_cfg, USE_TEXT,trai
 
 
 
-def organ_train(data_config, model, criterions, save_path, model_config,img_save_path,val_config=None, device='cuda:0'):
-    training_params = model_config['training']
-    prompt = model_config['settings']
-
-    criterion_weights=training_params['criterion_weights'] 
-    num_epochs = training_params['num_epochs']
-    bs=training_params['batch_size']
-    is_train_cache = training_params['train_cache']
-
-    USE_LORA = prompt['USE_LORA']
-    USE_TEXT_PROMPT = prompt['USE_TEXT_PROMPT']
-    USE_MASK_PROMPT = prompt['USE_MASK_PROMPT']
-    
-    model = model.to(device)
-
-    CM = None
-    if USE_MASK_PROMPT:
-        cache_dataset = build_dataset(data_config, image_in_cache=None, is_cache= True, model=model)
-        train_loader_cache = build_cache_loader(data_source=cache_dataset.train, batch_size=bs, shuffle=True, desired_size=data_config['img_size'])
-        CM = CacheModel(model, train_loader_cache, data_config['image_path'], is_train_cache, USE_LORA, save_path, device,tp_path=model_config['tp_ckpt_path'])  
-        if is_train_cache:
-            model.CM = CM.to(device)
-    
-    if training_params['optimizer'] == 'adamw':
-        optimizer = optim.AdamW(model.parameters(), lr=float(training_params['lr']), weight_decay=float(training_params['weight_decay']))
-    elif training_params['optimizer'] == 'sgd':
-        optimizer = optim.SGD(model.parameters(), lr=float(training_params['lr']), weight_decay=float(training_params['weight_decay']), momentum=0.9)
-    scheduler = linear_warmup_cosine_lr_scheduler(optimizer, int(training_params['num_epochs']*0.1), training_params['num_epochs'])
-
-    
-    if USE_LORA:
-        model.add_lora()
-        model = model.to(device)
-    else:
-        for p in model.parameters():
-            p.requires_grad=False
-    
-    #train common layers for all strategies
-    for name, p in model.named_parameters():
-        if 'prompt' in name:
-            p.requires_grad = True
-        if 'decoder' in name:
-            p.requires_grad = True
-        if 'Text_Embedding_Affine' in name:
-            p.requires_grad = True
-        if 'transpose' in name:
-            p.requires_grad = True
-        if 'clip' in name.lower():
-            p.requires_grad = False
-        if  'CM' in name in name:
-            p.requires_grad = True
-
-    if USE_MASK_PROMPT:
-        dataset = build_dataset(data_config, image_in_cache=CM.get_image_in_cache(), is_cache=False, model=None)
-    else:
-        dataset = build_dataset(data_config, image_in_cache=None, is_cache=False, model=None)
-    
-    tr_dataloader = build_data_loader(data_source=dataset.train, batch_size=bs, shuffle=False, desired_size=data_config['img_size'], isAug=False)
-    
-    if len(dataset.val)==0:
-        sample_size = int(len(dataset.test) * 1)
-        dataset.val = random.sample(dataset.test, sample_size)
-    val_dataloader = build_data_loader(data_source=dataset.val, batch_size=bs, shuffle=False, desired_size=data_config['img_size'])         
-
-    best_DSC = -np.inf
-
-    for epoch in range(num_epochs):
-        train_loss = train_per_epoch(
-            model=model, optimizer=optimizer, train_dataloader=tr_dataloader, 
-            criterions=criterions, criterion_weights=criterion_weights, 
-            CM=CM,
-            setting = prompt,
-            params = training_params,
-            d_cfg = data_config,
-            img_save_path = img_save_path,
-            epoch=epoch, device=device
-        )
-        if data_config['name'] =='Synapse':
-            valid_metric = valid_per_epoch_for_synapase(
-                model=model, valid_dataloader=val_dataloader, 
-                CM=CM, d_cfg=data_config,val_config=val_config,
-                USE_TEXT = USE_TEXT_PROMPT,
-                train_cache = is_train_cache,
-                img_save_path = img_save_path,
-                epoch=epoch, device=device
-            )
-            valid_metric /= len(val_config)
-            performance = np.mean(valid_metric, axis=0)[0]
-            mean_hd95 = np.mean(valid_metric, axis=0)[1]
-            wandb.log({'3D Valid DSC':performance, '3D Valid HD':mean_hd95, 'epoch':epoch})
-        else:
-            performance = valid_per_epoch_for_others(model=model, valid_dataloader=val_dataloader, 
-                CM=CM, d_cfg=data_config,
-                USE_TEXT = USE_TEXT_PROMPT,label_text = data_config['label_names'],train_cache = is_train_cache,
-                img_save_path = img_save_path,
-                epoch=epoch, device=device)
-            wandb.log({'dsc score':performance, 'epoch':epoch})
-           
-        if performance > best_DSC:
-            best_DSC = performance
-            # torch.save(model.transpose.state_dict(), './checkpoints/conv_' + save_path)
-            torch.save(model.state_dict(), os.path.join(save_path, 'model_ckpt.pth'))
-            if USE_LORA:
-                model.save_lora_parameters(os.path.join(save_path, 'lora_p.pth'))
-            if USE_MASK_PROMPT:
-                CM.save_cache_keys(CM.cache_keys)
-        scheduler.step()
-    print(f'BEST DSC: {best_DSC}')
-    return model
